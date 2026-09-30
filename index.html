@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Antheng Jomba - PWA System</title>
+    <title>POS Jombang</title>
     <!-- Vue.js 3 CDN -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <!-- Firebase App & Firestore CDN (Compat) -->
@@ -94,8 +94,8 @@
         <!-- Header -->
         <header>
             <div class="header-title">
-                <h1>Jombang POS</h1>
-                <p>Sistem Kasir & Laporan Shift</p>
+                <h1>JOMBANG</h1>
+                <p>POS & Kasir System</p>
             </div>
             <div v-if="currentUser" class="user-badge">
                 <span>👤 {{ currentUser.nama_lengkap }}</span>
@@ -109,7 +109,7 @@
             <!-- KONDISI 1: HALAMAN LOGIN -->
             <div v-if="!currentUser" class="card" style="margin: auto 0;">
                 <div class="text-center" style="margin-bottom: 20px;">
-                    <div style="font-size: 28px; margin-bottom: 8px;">🔑</div>
+                    <div style="font-size: 28px; margin-bottom: 8px;">☕</div>
                     <h2 style="font-size: 16px; font-weight: 700;">Login Kasir / PIC</h2>
                     <p style="font-size: 11px; color: #64748b; margin-top: 4px;">Sistem POS Jombang</p>
                 </div>
@@ -162,7 +162,7 @@
                     </button>
                 </div>
 
-                <!-- Navigasi Tab Menu (3 Tab: Dashboard, Kasir, Riwayat) -->
+                <!-- Navigasi Tab Menu -->
                 <div class="tab-container">
                     <button @click="activeTab = 'dashboard'" :class="['tab-btn', activeTab === 'dashboard' ? 'active' : '']">📊 Dashboard</button>
                     <button @click="activeTab = 'pos'" :class="['tab-btn', activeTab === 'pos' ? 'active' : '']">🛒 Kasir</button>
@@ -173,7 +173,7 @@
                 <div v-if="activeTab === 'dashboard'" style="display: flex; flex-direction: column; gap: 12px;">
                     <div class="card" style="padding: 14px;">
                         <h3 style="font-size: 12px; font-weight: 700; color: #1e293b; margin-bottom: 2px;">Ringkasan Performa Shift</h3>
-                        <p style="font-size: 10px; color: #64748b;">Statistik real-time keuangan outlet saat ini</p>
+                        <p style="font-size: 10px; color: #64748b;">Statistik real-time keuangan saat ini</p>
                         
                         <div class="stats-grid">
                             <div class="stat-card">
@@ -234,18 +234,18 @@
                         <input v-model="tableOrName" type="text" :placeholder="orderType === 'Dine-in' ? 'Nomor Meja (Contoh: Meja 3)' : 'Nama Pemesan (Contoh: Bpk Budi)'" class="input-control">
                     </div>
 
-                    <!-- Kategori Menu Berdasarkan Referensi -->
+                    <!-- Kategori Menu Berdasarkan Referensi Jombang -->
                     <div class="card" style="padding: 12px;">
                         <div class="tab-container" style="margin-bottom: 10px;">
                             <button @click="menuTab = 'kopsu'" :class="['tab-btn', menuTab === 'kopsu' ? 'active' : '']">☕ Es Kopsu</button>
                             <button @click="menuTab = 'milk'" :class="['tab-btn', menuTab === 'milk' ? 'active' : '']">🥛 Milk Based</button>
-                            <button @click="menuTab = 'seger'" :class="['tab-btn', menuTab === 'seger' ? 'active' : '']">🧊 Seger-Seger</button>
+                            <button @click="menuTab = 'seger'" :class="['tab-btn', menuTab === 'seger' ? 'active' : '']">🧊 Seger</button>
                             <button @click="menuTab = 'unjukan'" :class="['tab-btn', menuTab === 'unjukan' ? 'active' : '']">🍵 Unjukan</button>
                             <button @click="menuTab = 'daharan'" :class="['tab-btn', menuTab === 'daharan' ? 'active' : '']">🍛 Daharan</button>
                             <button @click="menuTab = 'cemilan'" :class="['tab-btn', menuTab === 'cemilan' ? 'active' : '']">🍟 Cemilan</button>
                         </div>
 
-                        <!-- Grid Menu Dinamis Berdasarkan Kategori -->
+                        <!-- Grid Menu Dinamis -->
                         <div class="menu-grid">
                             <button v-for="menu in filteredMenus" :key="menu.id" @click="addToCart(menu)" class="menu-item">
                                 <span class="m-name">{{ menu.name }}</span>
@@ -279,4 +279,5 @@
                                     <button @click="decreaseQty(index)" style="padding: 2px 6px; background: #e2e8f0; border: none; border-radius: 4px; font-weight: bold;">-</button>
                                     <span style="font-weight: bold;">{{ item.qty }}</span>
                                     <button @click="increaseQty(index)" style="padding: 2px 6px; background: #e2e8f0; border: none; border-radius: 4px; font-weight: bold;">+</button>
-                                    <button @click="removeFromCart(index)" style="border: 
+                                    <button @click="removeFromCart(index)" style="border: none; background: none; cursor: pointer;">🗑️</button>
+                                </
