@@ -4,15 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>POS Jombang</title>
-    <!-- Vue.js 3 CDN -->
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- Vue.js 3 CDN (jsDelivr Stable) -->
+    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.js"></script>
     <!-- Firebase App & Firestore CDN (Compat) -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Manifest PWA -->
-    <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#451a03">
     
     <style>
@@ -234,7 +232,7 @@
                         <input v-model="tableOrName" type="text" :placeholder="orderType === 'Dine-in' ? 'Nomor Meja (Contoh: Meja 3)' : 'Nama Pemesan (Contoh: Bpk Budi)'" class="input-control">
                     </div>
 
-                    <!-- Kategori Menu Berdasarkan Referensi Jombang -->
+                    <!-- Kategori Menu -->
                     <div class="card" style="padding: 12px;">
                         <div class="tab-container" style="margin-bottom: 10px;">
                             <button @click="menuTab = 'kopsu'" :class="['tab-btn', menuTab === 'kopsu' ? 'active' : '']">☕ Es Kopsu</button>
@@ -280,4 +278,465 @@
                                     <span style="font-weight: bold;">{{ item.qty }}</span>
                                     <button @click="increaseQty(index)" style="padding: 2px 6px; background: #e2e8f0; border: none; border-radius: 4px; font-weight: bold;">+</button>
                                     <button @click="removeFromCart(index)" style="border: none; background: none; cursor: pointer;">🗑️</button>
-                                </
+                                </div>
+                            </div>
+                        </div>
+
+                        <div v-if="cart.length > 0" style="border-top: 1px solid #e2e8f0; margin-top: 10px; padding-top: 10px;">
+                            <div style="display: flex; justify-content: space-between; font-weight: 700; font-size: 14px; margin-bottom: 10px;">
+                                <span>Total:</span>
+                                <span style="color: #784827;">Rp {{ calculateTotal.toLocaleString() }}</span>
+                            </div>
+                            <div class="tab-container" style="margin-bottom: 8px;">
+                                <button type="button" @click="paymentMethod = 'Tunai'" :class="['tab-btn', paymentMethod === 'Tunai' ? 'active' : '']">Tunai (Cash)</button>
+                                <button type="button" @click="paymentMethod = 'QRIS'" :class="['tab-btn', paymentMethod === 'QRIS' ? 'active' : '']">QRIS</button>
+                            </div>
+                            <div v-if="paymentMethod === 'Tunai'" style="margin-bottom: 10px;">
+                                <label style="font-size: 11px; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">Uang Diterima</label>
+                                <input v-model.number="cashReceived" type="number" class="input-control" placeholder="Nominal uang...">
+                                <div style="display: flex; justify-content: space-between; font-size: 11px; font-weight: bold; margin-top: 4px; background: #f8fafc; padding: 6px; border-radius: 6px;">
+                                    <span>Kembalian:</span>
+                                    <span :style="{ color: calculateChange < 0 ? '#dc2626' : '#059669' }">Rp {{ calculateChange >= 0 ? calculateChange.toLocaleString() : 'Uang Kurang!' }}</span>
+                                </div>
+                            </div>
+                            <button @click="processCheckout" class="btn btn-green">Simpan & Selesaikan Pesanan 🚀</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 2: RIWAYAT & PENGELUARAN -->
+                <div v-if="activeTab === 'history'" style="display: flex; flex-direction: column; gap: 12px;">
+                    <div class="card" style="padding: 12px;">
+                        <h3 style="font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 8px;">Catat Pengeluaran Shift</h3>
+                        <form @submit.prevent="addExpense">
+                            <div class="form-group">
+                                <input v-model="expenseForm.name" type="text" placeholder="Keterangan (Cth: Beli Es Batu)" required class="input-control">
+                            </div>
+                            <div class="form-group">
+                                <input v-model.number="expenseForm.amount" type="number" placeholder="Nominal (Rp)" required min="0" class="input-control">
+                            </div>
+                            <button type="submit" class="btn btn-amber">Simpan Pengeluaran 📉</button>
+                        </form>
+                    </div>
+
+                    <div class="card" style="padding: 12px;">
+                        <h3 style="font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 6px;">Daftar Pengeluaran</h3>
+                        <div v-if="expensesList.length === 0" style="text-align: center; color: #94a3b8; font-size: 11px; padding: 10px;">Belum ada pengeluaran.</div>
+                        <div v-else style="display: flex; flex-direction: column; gap: 6px;">
+                            <div v-for="exp in expensesList" :key="exp.id" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px;">
+                                <div>
+                                    <p style="font-weight: 700;">{{ exp.name }}</p>
+                                    <span style="font-size: 9px; color: #94a3b8;">{{ exp.time }}</span>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="font-weight: 700; color: #dc2626;">-Rp {{ exp.amount.toLocaleString() }}</span>
+                                    <button @click="deleteExpense(exp.id)" style="border: none; background: none; cursor: pointer;">🗑️</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card" style="padding: 12px;">
+                        <h3 style="font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 6px;">Riwayat Transaksi Masuk</h3>
+                        <div v-if="transactionsList.length === 0" style="text-align: center; color: #94a3b8; font-size: 11px; padding: 20px;">Belum ada transaksi di shift ini.</div>
+                        <div v-else class="trx-list">
+                            <div v-for="trx in transactionsList" :key="trx.id" style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid #f1f5f9; padding-bottom: 6px;">
+                                <div>
+                                    <p style="font-weight: 700;">{{ trx.tableOrName }} <span style="font-size: 9px; background: #e2e8f0; padding: 2px 4px; border-radius: 4px;">{{ trx.orderType }}</span></p>
+                                    <p style="font-size: 9px; color: #64748b; margin-top: 2px;">Bayar: <strong>{{ trx.paymentMethod }}</strong></p>
+                                </div>
+                                <div style="text-align: right; display: flex; align-items: center; gap: 8px;">
+                                    <div>
+                                        <p style="font-weight: 700; color: #059669;">Rp {{ trx.total.toLocaleString() }}</p>
+                                        <p style="font-size: 9px; color: #94a3b8;">{{ trx.timeStr }}</p>
+                                    </div>
+                                    <button @click="deleteTransaction(trx.id)" style="border: none; background: #fef2f2; padding: 4px 6px; border-radius: 6px; cursor: pointer;">🗑️</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MODAL CLOSING LAPORAN -->
+            <div v-if="isClosingModalOpen" class="modal-backdrop">
+                <div class="modal-box">
+                    <div style="background: linear-gradient(135deg, #3f2314, #784827); color: white; padding: 14px; text-align: center;">
+                        <h3 style="font-size: 13px; font-weight: 700;">Laporan Closing Shift</h3>
+                        <p style="font-size: 10px; color: #d4d4d4;">JOMBANG</p>
+                    </div>
+
+                    <!-- Area Resi Thermal -->
+                    <div id="printable-receipt" class="receipt-area">
+                        <div style="text-align: center; padding-bottom: 6px; border-bottom: 1px dashed #cbd5e1; margin-bottom: 6px;">
+                            <p style="font-weight: bold; font-size: 11px;">JOMBANG</p>
+                            <p style="font-size: 9px; color: #64748b;">{{ currentTimestamp }}</p>
+                            <p style="font-size: 9px; color: #64748b; margin-top: 2px;">Kasir: {{ currentUser ? currentUser.nama_lengkap : '' }}</p>
+                        </div>
+                        
+                        <div style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 6px;">
+                            <div class="receipt-line"><span>Saldo Awal Kasir</span><span style="font-weight: bold;">Rp {{ shiftForm.initialCash.toLocaleString() }}</span></div>
+                            <div class="receipt-line"><span>Total Nota Terjual</span><span style="font-weight: bold;">{{ transactionsList.length }} Nota</span></div>
+                            <div class="receipt-line"><span>Pendapatan Tunai</span><span style="font-weight: bold; color: #047857;">Rp {{ closingSummary.totalCash.toLocaleString() }}</span></div>
+                            <div class="receipt-line"><span>Pendapatan QRIS</span><span style="font-weight: bold; color: #1d4ed8;">Rp {{ closingSummary.totalQris.toLocaleString() }}</span></div>
+                        </div>
+
+                        <div style="border-top: 1px dashed #cbd5e1; padding-top: 6px; margin-bottom: 6px;">
+                            <div class="receipt-line" style="font-weight: bold;"><span>TOTAL OMZET KOTOR</span><span>Rp {{ closingSummary.grossOmzet.toLocaleString() }}</span></div>
+                            <div class="receipt-line" style="color: #dc2626;"><span>Total Pengeluaran</span><span style="font-weight: bold;">-Rp {{ closingSummary.totalExpense.toLocaleString() }}</span></div>
+                        </div>
+
+                        <div style="border-top: 1px dashed #cbd5e1; padding-top: 6px;">
+                            <div class="receipt-line" style="font-weight: bold; font-size: 11px; color: #784827;"><span>PENDAPATAN BERSIH</span><span>Rp {{ closingSummary.netIncome.toLocaleString() }}</span></div>
+                            <div class="receipt-line" style="color: #475569;"><span>Uang Fisik di Laci</span><span style="font-weight: bold;">Rp {{ closingSummary.drawerCash.toLocaleString() }}</span></div>
+                            <div class="receipt-line" style="color: #64748b; font-size: 9px;"><span>Expense Ratio</span><span style="font-weight: bold;">{{ closingSummary.expenseRatio.toFixed(2) }}%</span></div>
+                        </div>
+
+                        <div style="text-align: center; padding-top: 8px; border-top: 1px dashed #cbd5e1; margin-top: 6px; font-size: 9px; color: #94a3b8;">
+                            --- Terima Kasih - Shift Ditutup ---
+                        </div>
+                    </div>
+
+                    <!-- Tombol Aksi Closing -->
+                    <div style="padding: 12px; background: white; border-top: 1px solid #e2e8f0; display: flex; gap: 8px;">
+                        <button @click="printReceipt" class="btn btn-slate" style="flex: 1; padding: 10px;">🖨️ Cetak / PDF</button>
+                        <button @click="confirmCloseShift" class="btn btn-primary" style="flex: 1; padding: 10px;">✅ Selesai Shift</button>
+                    </div>
+                    <button @click="isClosingModalOpen = false" style="background: none; border: none; color: #64748b; font-size: 11px; font-weight: 600; padding-bottom: 12px; cursor: pointer; text-align: center;">
+                        Batal / Kembali ke POS
+                    </button>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Firebase & Vue Logic -->
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyDcBCCBN6AXR9bBD3XpmwIPvvD44-8xYdk",
+            authDomain: "anthengpos.firebaseapp.com",
+            projectId: "anthengpos",
+            storageBucket: "anthengpos.firebasestorage.app",
+            messagingSenderId: "789010803263",
+            appId: "1:789010803263:web:baa3b1fac4106ded38a68a"
+        };
+
+        try {
+            if (!firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+            }
+        } catch (e) {
+            console.error("Firebase init error:", e);
+        }
+        const db = firebase.firestore();
+
+        const { createApp } = Vue;
+
+        createApp({
+            data() {
+                return {
+                    currentUser: null,
+                    activeShift: false,
+                    activeTab: 'dashboard',
+                    menuTab: 'kopsu',
+                    loginForm: { username: '', password: '' },
+                    loginError: '',
+                    shiftForm: { initialCash: 0, startTime: null, startTimeStr: '' },
+                    currentTimestamp: '',
+                    
+                    orderType: 'Dine-in',
+                    tableOrName: '',
+                    paymentMethod: 'Tunai',
+                    cashReceived: 0,
+                    
+                    allMenus: [
+                        { id: 'ek_1', category: 'kopsu', name: 'Es Kopsu Gula Aren', price: 14000 },
+                        { id: 'ek_2', category: 'kopsu', name: 'Es Kopsu Buttersccoth', price: 14000 },
+                        { id: 'ek_3', category: 'kopsu', name: 'Es Kopsu Hazelnut', price: 14000 },
+                        { id: 'ek_4', category: 'kopsu', name: 'Es Kopsu Caramel', price: 14000 },
+                        { id: 'ek_5', category: 'kopsu', name: 'Es Kopsu Vanilla', price: 14000 },
+                        { id: 'ek_6', category: 'kopsu', name: 'Es Kopsu Antheng', price: 13000 },
+                        { id: 'ek_7', category: 'kopsu', name: 'Coffe Beer', price: 13000 },
+                        { id: 'ek_8', category: 'kopsu', name: 'Americano', price: 10000 },
+
+                        { id: 'mb_1', category: 'milk', name: 'Matcha Caramel', price: 14000 },
+                        { id: 'mb_2', category: 'milk', name: 'Choco Hazelnut', price: 14000 },
+                        { id: 'mb_3', category: 'milk', name: 'Choco Caramel', price: 14000 },
+                        { id: 'mb_4', category: 'milk', name: 'Choco Oreo', price: 13000 },
+                        { id: 'mb_5', category: 'milk', name: 'Red Velvet', price: 13000 },
+                        { id: 'mb_6', category: 'milk', name: 'Matcha', price: 13000 },
+                        { id: 'mb_7', category: 'milk', name: 'Milky Strawberry', price: 13000 },
+                        { id: 'mb_8', category: 'milk', name: 'Milky Melon', price: 13000 },
+                        { id: 'mb_9', category: 'milk', name: 'Oreo', price: 13000 },
+                        { id: 'mb_10', category: 'milk', name: 'Banana', price: 13000 },
+                        { id: 'mb_11', category: 'milk', name: 'Taro', price: 13000 },
+                        { id: 'mb_12', category: 'milk', name: 'Choco', price: 13000 },
+
+                        { id: 'sg_1', category: 'seger', name: 'Strawberry Sparkult', price: 13000 },
+                        { id: 'sg_2', category: 'seger', name: 'Melon Sparkult', price: 13000 },
+                        { id: 'sg_3', category: 'seger', name: 'Strawberry Squash', price: 12000 },
+                        { id: 'sg_4', category: 'seger', name: 'Melon Squash', price: 12000 },
+                        { id: 'sg_5', category: 'seger', name: 'Lychee Squash', price: 12000 },
+                        { id: 'sg_6', category: 'seger', name: 'Sogem', price: 12000 },
+                        { id: 'sg_7', category: 'seger', name: 'Lemon Tea', price: 10000 },
+                        { id: 'sg_8', category: 'seger', name: 'Lychee Tea', price: 10000 },
+                        { id: 'sg_9', category: 'seger', name: 'Strawberry Tea', price: 10000 },
+                        { id: 'sg_10', category: 'seger', name: 'Es Teh', price: 5000 },
+
+                        { id: 'unj_1', category: 'unjukan', name: 'Badeg Susu', price: 8000 },
+                        { id: 'unj_2', category: 'unjukan', name: 'Joshua', price: 8000 },
+                        { id: 'unj_3', category: 'unjukan', name: 'Kubisu', price: 8000 },
+                        { id: 'unj_4', category: 'unjukan', name: 'Good Day', price: 8000 },
+                        { id: 'unj_5', category: 'unjukan', name: 'Milo', price: 8000 },
+                        { id: 'unj_6', category: 'unjukan', name: 'Kopi Jahe', price: 8000 },
+                        { id: 'unj_7', category: 'unjukan', name: 'Milk Tea', price: 7000 },
+                        { id: 'unj_8', category: 'unjukan', name: 'Kopi Susu', price: 7000 },
+                        { id: 'unj_9', category: 'unjukan', name: 'Susu Jahe', price: 7000 },
+                        { id: 'unj_10', category: 'unjukan', name: 'Badeg', price: 7000 },
+                        { id: 'unj_11', category: 'unjukan', name: 'Wedang Jahe', price: 6000 },
+                        { id: 'unj_12', category: 'unjukan', name: 'Kopi Hitam', price: 6000 },
+                        { id: 'unj_13', category: 'unjukan', name: 'Air Mineral', price: 5000 },
+
+                        { id: 'dhr_1', category: 'daharan', name: 'Nasi Ayam Songkem', price: 15000 },
+                        { id: 'dhr_2', category: 'daharan', name: 'Nasi Telur Cakalang', price: 14000 },
+                        { id: 'dhr_3', category: 'daharan', name: 'Nasi Telur Sambelan', price: 13000 },
+                        { id: 'dhr_4', category: 'daharan', name: 'Tahu Cirawit', price: 12000 },
+                        { id: 'dhr_5', category: 'daharan', name: 'Pop Mie', price: 9000 },
+                        { id: 'dhr_6', category: 'daharan', name: 'Warmindo Telur', price: 9000 },
+                        { id: 'dhr_7', category: 'daharan', name: 'Warmindo', price: 7000 },
+                        { id: 'dhr_8', category: 'daharan', name: 'Nasi', price: 3000 },
+
+                        { id: 'cml_1', category: 'cemilan', name: 'Snack Attack', price: 15000 },
+                        { id: 'cml_2', category: 'cemilan', name: 'Bakso Ikan', price: 10000 },
+                        { id: 'cml_3', category: 'cemilan', name: 'Tahu Bakso', price: 10000 },
+                        { id: 'cml_4', category: 'cemilan', name: 'Siomay Goreng', price: 10000 },
+                        { id: 'cml_5', category: 'cemilan', name: 'Cireng', price: 10000 },
+                        { id: 'cml_6', category: 'cemilan', name: 'Kentang', price: 10000 },
+                        { id: 'cml_7', category: 'cemilan', name: 'Pentol Goreng', price: 10000 },
+                        { id: 'cml_8', category: 'cemilan', name: 'Nugget', price: 10000 }
+                    ],
+
+                    customInput: { name: '', price: null },
+                    cart: [],
+
+                    expenseForm: { name: '', amount: null },
+                    expensesList: [],
+                    transactionsList: [],
+
+                    isClosingModalOpen: false
+                }
+            },
+            computed: {
+                filteredMenus() {
+                    return this.allMenus.filter(m => m.category === this.menuTab);
+                },
+                calculateTotal() {
+                    return this.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+                },
+                calculateChange() {
+                    return this.cashReceived - this.calculateTotal;
+                },
+                closingSummary() {
+                    let totalCash = 0;
+                    let totalQris = 0;
+                    this.transactionsList.forEach(trx => {
+                        if (trx.paymentMethod === 'Tunai') totalCash += trx.total;
+                        else if (trx.paymentMethod === 'QRIS') totalQris += trx.total;
+                    });
+                    const grossOmzet = totalCash + totalQris;
+                    const totalExpense = this.expensesList.reduce((sum, exp) => sum + exp.amount, 0);
+                    const netIncome = grossOmzet - totalExpense;
+                    const drawerCash = this.shiftForm.initialCash + totalCash - totalExpense;
+                    const expenseRatio = grossOmzet > 0 ? (totalExpense / grossOmzet) * 100 : 0;
+
+                    return { totalCash, totalQris, grossOmzet, totalExpense, netIncome, drawerCash, expenseRatio };
+                }
+            },
+            mounted() {
+                try {
+                    const savedUser = localStorage.getItem('jombang_user');
+                    const savedShift = localStorage.getItem('jombang_shift');
+                    if (savedUser) this.currentUser = JSON.parse(savedUser);
+                    if (savedShift) {
+                        this.activeShift = true;
+                        const shiftData = JSON.parse(savedShift);
+                        this.shiftForm.initialCash = shiftData.initialCash;
+                        this.shiftForm.startTime = shiftData.startTime;
+                        this.shiftForm.startTimeStr = shiftData.startTimeStr;
+                        this.fetchShiftData();
+                    }
+                } catch (e) {
+                    console.error("Error loading localStorage:", e);
+                }
+                this.updateTime();
+                setInterval(this.updateTime, 1000);
+            },
+            methods: {
+                updateTime() {
+                    const now = new Date();
+                    this.currentTimestamp = now.toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'medium' });
+                },
+                async handleLogin() {
+                    this.loginError = '';
+                    try {
+                        const snapshot = await db.collection('users')
+                            .where('username', '==', this.loginForm.username)
+                            .where('password', '==', this.loginForm.password)
+                            .get();
+                        if (snapshot.empty) {
+                            this.loginError = 'Username atau Password salah!';
+                        } else {
+                            this.currentUser = snapshot.docs[0].data();
+                            localStorage.setItem('jombang_user', JSON.stringify(this.currentUser));
+                        }
+                    } catch (error) {
+                        console.error("Error login:", error);
+                        this.loginError = 'Terjadi kesalahan koneksi database.';
+                    }
+                },
+                handleOpenShift() {
+                    if (this.shiftForm.initialCash < 0) {
+                        alert('Masukkan saldo awal kasir yang valid!');
+                        return;
+                    }
+                    this.activeShift = true;
+                    const now = new Date();
+                    const startTimeIso = now.toISOString();
+                    const startTimeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                    
+                    this.shiftForm.startTime = startTimeIso;
+                    this.shiftForm.startTimeStr = startTimeStr;
+                    
+                    const shiftData = {
+                        pic: this.currentUser.username,
+                        initialCash: this.shiftForm.initialCash,
+                        startTime: startTimeIso,
+                        startTimeStr: startTimeStr
+                    };
+                    localStorage.setItem('jombang_shift', JSON.stringify(shiftData));
+                    this.fetchShiftData();
+                },
+                logout() {
+                    localStorage.removeItem('jombang_user');
+                    localStorage.removeItem('jombang_shift');
+                    this.currentUser = null;
+                    this.activeShift = false;
+                },
+                openClosingModal() {
+                    this.isClosingModalOpen = true;
+                },
+                printReceipt() {
+                    window.print();
+                },
+                confirmCloseShift() {
+                    if (confirm('Shift akan ditutup dan sesi kasir direset. Lanjutkan?')) {
+                        localStorage.removeItem('jombang_shift');
+                        this.activeShift = false;
+                        this.shiftForm.initialCash = 0;
+                        this.isClosingModalOpen = false;
+                        alert('Shift berhasil ditutup! Sampai jumpa di shift berikutnya.');
+                    }
+                },
+                fetchShiftData() {
+                    db.collection('transactions').orderBy('timestamp', 'desc').onSnapshot(snapshot => {
+                        this.transactionsList = snapshot.docs.map(doc => {
+                            const data = doc.data();
+                            let timeStr = data.timestamp?.toDate ? data.timestamp.toDate().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : 'Baru saja';
+                            return { id: doc.id, ...data, timeStr };
+                        });
+                    }, err => { console.error("Transactions read error:", err); });
+
+                    db.collection('expenses').orderBy('timestamp', 'desc').onSnapshot(snapshot => {
+                        this.expensesList = snapshot.docs.map(doc => {
+                            const data = doc.data();
+                            let time = data.timestamp?.toDate ? data.timestamp.toDate().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : 'Baru saja';
+                            return { id: doc.id, ...data, time };
+                        });
+                    }, err => { console.error("Expenses read error:", err); });
+                },
+                addToCart(menu) {
+                    const existing = this.cart.find(item => item.id === menu.id);
+                    if (existing) existing.qty++;
+                    else this.cart.push({ id: menu.id, name: menu.name, price: menu.price, qty: 1 });
+                },
+                addCustomItem() {
+                    if (!this.customInput.name || !this.customInput.price || this.customInput.price <= 0) {
+                        alert('Masukkan nama dan harga menu tambahan dengan benar!');
+                        return;
+                    }
+                    this.cart.push({ id: 'custom_' + Date.now(), name: this.customInput.name, price: Number(this.customInput.price), qty: 1 });
+                    this.customInput.name = '';
+                    this.customInput.price = null;
+                },
+                increaseQty(index) { this.cart[index].qty++; },
+                decreaseQty(index) {
+                    if (this.cart[index].qty > 1) this.cart[index].qty--;
+                    else this.cart.splice(index, 1);
+                },
+                removeFromCart(index) { this.cart.splice(index, 1); },
+                
+                async processCheckout() {
+                    if (this.cart.length === 0) return;
+                    if (!this.tableOrName) {
+                        alert('Mohon isi Nomor Meja atau Nama Pemesan!');
+                        return;
+                    }
+                    if (this.paymentMethod === 'Tunai' && this.calculateChange < 0) {
+                        alert('Uang tunai pembeli kurang!');
+                        return;
+                    }
+
+                    const transactionData = {
+                        pic: this.currentUser.username,
+                        orderType: this.orderType,
+                        tableOrName: this.tableOrName,
+                        items: this.cart,
+                        total: this.calculateTotal,
+                        paymentMethod: this.paymentMethod,
+                        cashReceived: this.paymentMethod === 'Tunai' ? this.cashReceived : this.calculateTotal,
+                        change: this.paymentMethod === 'Tunai' ? this.calculateChange : 0,
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    };
+
+                    try {
+                        await db.collection('transactions').add(transactionData);
+                        alert('Pesanan berhasil disimpan! 🎉');
+                        this.cart = [];
+                        this.tableOrName = '';
+                        this.cashReceived = 0;
+                        this.paymentMethod = 'Tunai';
+                    } catch (error) {
+                        console.error("Gagal menyimpan transaksi:", error);
+                        alert('Gagal menyimpan transaksi ke database.');
+                    }
+                },
+                async deleteTransaction(id) {
+                    if (confirm('Yakin ingin menghapus transaksi ini? Data omzet akan disesuaikan.')) {
+                        try { await db.collection('transactions').doc(id).delete(); } catch (error) { alert('Gagal menghapus transaksi.'); }
+                    }
+                },
+                async addExpense() {
+                    if (!this.expenseForm.name || !this.expenseForm.amount) return;
+                    try {
+                        await db.collection('expenses').add({
+                            pic: this.currentUser.username,
+                            name: this.expenseForm.name,
+                            amount: Number(this.expenseForm.amount),
+                            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                        this.expenseForm.name = '';
+                        this.expenseForm.amount = null;
+                        alert('Pengeluaran berhasil dicatat!');
+                    } catch (error) { alert('Gagal menyimpan pengeluaran.'); }
+                },
+                async deleteExpense(id) {
+                    if (confirm('Hapus catatan pengeluaran ini?')) {
+                        try { await db.collection('expenses').doc(id).delete(); } catch (error) { console.error(error); }
+                    }
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
