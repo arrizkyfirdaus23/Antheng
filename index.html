@@ -56,7 +56,7 @@
         .menu-item .m-name { font-weight: 700; color: #1e293b; font-size: 11px; }
         .menu-item .m-price { font-weight: 700; color: #784827; font-size: 11px; margin-top: 6px; }
 
-        .cart-list, .trx-list { max-height: 180px; overflow-y: auto; margin-top: 8px; display: flex; flex-direction: column; gap: 8px; }
+        .cart-list, .trx-list { max-height: 200px; overflow-y: auto; margin-top: 8px; display: flex; flex-direction: column; gap: 8px; }
         .cart-row { display: flex; justify-content: space-between; align-items: center; padding-top: 6px; border-bottom: 1px solid #f1f5f9; padding-bottom: 6px; }
         
         .modal-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 16px; }
@@ -111,10 +111,10 @@
                 </form>
             </div>
 
-            <!-- Open Shift Section with Shift Selection -->
+            <!-- Open Shift Section -->
             <div v-else-if="currentUser && !activeShift" class="card" style="margin: auto 0;">
                 <div class="text-center" style="margin-bottom: 20px;">
-                    <div style="font-size: 28px; margin-bottom: 8px;">⏱️</div>
+                    <div style="font-size: 28px; margin-bottom: 8px;">⏱️️</div>
                     <h2 style="font-size: 16px; font-weight: 700;">Buka Shift</h2>
                     <p style="font-size: 11px; color: #64748b; margin-top: 4px;">Pilih shift dan atur modal awal kasir</p>
                 </div>
@@ -153,7 +153,7 @@
                 <div class="tab-container">
                     <button @click="activeTab = 'dashboard'" :class="['tab-btn', activeTab === 'dashboard' ? 'active' : '']">Dashboard</button>
                     <button @click="activeTab = 'pos'" :class="['tab-btn', activeTab === 'pos' ? 'active' : '']">Kasir</button>
-                    <button @click="activeTab = 'history'" :class="['tab-btn', activeTab === 'history' ? 'active' : '']">Riwayat</button>
+                    <button @click="activeTab = 'history'" :class="['tab-btn', activeTab === 'history' ? 'active' : '']">Riwayat & Semua Shift</button>
                 </div>
 
                 <!-- Dashboard Tab -->
@@ -173,7 +173,7 @@
                             </div>
                             <div class="stat-card">
                                 <span class="label">Total Transaksi</span>
-                                <span class="value">{{ transactionsList.length }} Nota</span>
+                                <span class="value">{{ currentShiftTransactions.length }} Nota</span>
                             </div>
                             <div class="stat-card">
                                 <span class="label">Total Pengeluaran</span>
@@ -289,10 +289,10 @@
                     </div>
                 </div>
 
-                <!-- History Tab -->
+                <!-- History & All Shifts Tab -->
                 <div v-if="activeTab === 'history'" style="display: flex; flex-direction: column; gap: 12px;">
                     <div class="card" style="padding: 12px;">
-                        <h3 style="font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 8px;">Catat Pengeluaran Shift</h3>
+                        <h3 style="font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 8px;">Catat Pengeluaran Shift Ini</h3>
                         <form @submit.prevent="addExpense">
                             <div class="form-group">
                                 <input v-model="expenseForm.name" type="text" placeholder="Keterangan (Cth: Beli Es Batu)" required class="input-control">
@@ -305,13 +305,13 @@
                     </div>
 
                     <div class="card" style="padding: 12px;">
-                        <h3 style="font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 6px;">Daftar Pengeluaran Shift Ini</h3>
+                        <h3 style="font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 6px;">Daftar Pengeluaran (Semua Shift)</h3>
                         <div v-if="expensesList.length === 0" style="text-align: center; color: #94a3b8; font-size: 11px; padding: 10px;">Belum ada pengeluaran.</div>
                         <div v-else style="display: flex; flex-direction: column; gap: 6px;">
                             <div v-for="exp in expensesList" :key="exp.id" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px;">
                                 <div>
-                                    <p style="font-weight: 700;">{{ exp.name }}</p>
-                                    <span style="font-size: 9px; color: #94a3b8;">{{ exp.time }}</span>
+                                    <p style="font-weight: 700;">{{ exp.name }} <span style="font-size: 8px; background: #fef3c7; color: #b45309; padding: 1px 4px; border-radius: 4px;">{{ exp.shiftName }}</span></p>
+                                    <span style="font-size: 9px; color: #94a3b8;">PIC: {{ exp.pic }} | {{ exp.time }}</span>
                                 </div>
                                 <div style="display: flex; align-items: center; gap: 8px;">
                                     <span style="font-weight: 700; color: #dc2626;">-Rp {{ exp.amount.toLocaleString() }}</span>
@@ -322,13 +322,14 @@
                     </div>
 
                     <div class="card" style="padding: 12px;">
-                        <h3 style="font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 6px;">Riwayat Transaksi Masuk Shift Ini</h3>
-                        <div v-if="transactionsList.length === 0" style="text-align: center; color: #94a3b8; font-size: 11px; padding: 20px;">Belum ada transaksi di shift ini.</div>
+                        <h3 style="font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 6px;">Riwayat Transaksi (Semua Shift Terpantau Live)</h3>
+                        <div v-if="transactionsList.length === 0" style="text-align: center; color: #94a3b8; font-size: 11px; padding: 20px;">Belum ada transaksi sama sekali.</div>
                         <div v-else class="trx-list">
                             <div v-for="trx in transactionsList" :key="trx.id" style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid #f1f5f9; padding-bottom: 6px;">
                                 <div>
                                     <p style="font-weight: 700;">{{ trx.tableOrName }} <span style="font-size: 9px; background: #e2e8f0; padding: 2px 4px; border-radius: 4px;">{{ trx.orderType }}</span></p>
-                                    <p style="font-size: 9px; color: #64748b; margin-top: 2px;">Bayar: <strong>{{ trx.paymentMethod }}</strong></p>
+                                    <p style="font-size: 9px; color: #784827; font-weight: 600; margin-top: 2px;">{{ trx.shiftName }} (PIC: {{ trx.pic }})</p>
+                                    <p style="font-size: 9px; color: #64748b;">Bayar: <strong>{{ trx.paymentMethod }}</strong></p>
                                 </div>
                                 <div style="text-align: right; display: flex; align-items: center; gap: 8px;">
                                     <div>
@@ -361,7 +362,7 @@
                         
                         <div style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 6px;">
                             <div class="receipt-line"><span>Saldo Awal Kasir</span><span style="font-weight: bold;">Rp {{ shiftForm.initialCash.toLocaleString() }}</span></div>
-                            <div class="receipt-line"><span>Total Nota Terjual</span><span style="font-weight: bold;">{{ transactionsList.length }} Nota</span></div>
+                            <div class="receipt-line"><span>Total Nota Terjual</span><span style="font-weight: bold;">{{ currentShiftTransactions.length }} Nota</span></div>
                             <div class="receipt-line"><span>Pendapatan Tunai</span><span style="font-weight: bold; color: #047857;">Rp {{ closingSummary.totalCash.toLocaleString() }}</span></div>
                             <div class="receipt-line"><span>Pendapatan QRIS</span><span style="font-weight: bold; color: #1d4ed8;">Rp {{ closingSummary.totalQris.toLocaleString() }}</span></div>
                         </div>
@@ -525,15 +526,21 @@
                 calculateChange() {
                     return this.cashReceived - this.calculateTotal;
                 },
+                currentShiftTransactions() {
+                    return this.transactionsList.filter(trx => trx.shiftName === this.shiftForm.shiftName);
+                },
+                currentShiftExpenses() {
+                    return this.expensesList.filter(exp => exp.shiftName === this.shiftForm.shiftName);
+                },
                 closingSummary() {
                     let totalCash = 0;
                     let totalQris = 0;
-                    this.transactionsList.forEach(trx => {
+                    this.currentShiftTransactions.forEach(trx => {
                         if (trx.paymentMethod === 'Tunai') totalCash += trx.total;
                         else if (trx.paymentMethod === 'QRIS') totalQris += trx.total;
                     });
                     const grossOmzet = totalCash + totalQris;
-                    const totalExpense = this.expensesList.reduce((sum, exp) => sum + exp.amount, 0);
+                    const totalExpense = this.currentShiftExpenses.reduce((sum, exp) => sum + exp.amount, 0);
                     const netIncome = grossOmzet - totalExpense;
                     const drawerCash = this.shiftForm.initialCash + totalCash - totalExpense;
                     const expenseRatio = grossOmzet > 0 ? (totalExpense / grossOmzet) * 100 : 0;
@@ -553,9 +560,7 @@
                         this.shiftForm.shiftName = shiftData.shiftName || 'Shift Pagi (08:00 - 16:00)';
                         this.shiftForm.startTime = shiftData.startTime;
                         this.shiftForm.startTimeStr = shiftData.startTimeStr;
-                        this.fetchShiftData();
                     } else {
-                        // Auto-detect shift berdasarkan waktu saat ini
                         const currentHour = new Date().getHours();
                         if (currentHour >= 16 || currentHour < 8) {
                             this.shiftForm.shiftName = 'Shift Sore (16:00 - 00:00)';
@@ -566,6 +571,7 @@
                 } catch (e) {
                     console.error("Error loading localStorage:", e);
                 }
+                this.fetchAllDataLive();
                 this.updateTime();
                 setInterval(this.updateTime, 1000);
             },
@@ -613,7 +619,6 @@
                         startTimeStr: startTimeStr
                     };
                     localStorage.setItem('jombang_shift', JSON.stringify(shiftData));
-                    this.fetchShiftData();
                 },
                 logout() {
                     localStorage.removeItem('jombang_user');
@@ -636,49 +641,24 @@
                         alert('Shift berhasil ditutup! Sampai jumpa di shift berikutnya.');
                     }
                 },
-                fetchShiftData() {
-                    // Filter berdasarkan shiftName dan tanggal mulai jika diinginkan, atau ambil data sesi aktif
-                    db.collection('transactions')
-                        .where('shiftName', '==', this.shiftForm.shiftName)
-                        .orderBy('timestamp', 'desc')
-                        .onSnapshot(snapshot => {
-                            this.transactionsList = snapshot.docs.map(doc => {
-                                const data = doc.data();
-                                let timeStr = data.timestamp?.toDate ? data.timestamp.toDate().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : 'Baru saja';
-                                return { id: doc.id, ...data, timeStr };
-                            });
-                        }, err => { 
-                            console.warn("Query with shiftName failed, falling back to all:", err);
-                            // Fallback jika belum ada index Firestore untuk where + orderBy
-                            db.collection('transactions').orderBy('timestamp', 'desc').onSnapshot(snapshot => {
-                                const allTrx = snapshot.docs.map(doc => {
-                                    const data = doc.data();
-                                    let timeStr = data.timestamp?.toDate ? data.timestamp.toDate().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : 'Baru saja';
-                                    return { id: doc.id, ...data, timeStr };
-                                });
-                                this.transactionsList = allTrx.filter(t => t.shiftName === this.shiftForm.shiftName);
-                            });
+                fetchAllDataLive() {
+                    // Mengambil SEMUA transaksi lintas shift secara real-time
+                    db.collection('transactions').orderBy('timestamp', 'desc').onSnapshot(snapshot => {
+                        this.transactionsList = snapshot.docs.map(doc => {
+                            const data = doc.data();
+                            let timeStr = data.timestamp?.toDate ? data.timestamp.toDate().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : 'Baru saja';
+                            return { id: doc.id, ...data, timeStr };
                         });
+                    }, err => { console.warn("Error fetching transactions:", err); });
 
-                    db.collection('expenses')
-                        .where('shiftName', '==', this.shiftForm.shiftName)
-                        .orderBy('timestamp', 'desc')
-                        .onSnapshot(snapshot => {
-                            this.expensesList = snapshot.docs.map(doc => {
-                                const data = doc.data();
-                                let time = data.timestamp?.toDate ? data.timestamp.toDate().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : 'Baru saja';
-                                return { id: doc.id, ...data, time };
-                            });
-                        }, err => {
-                            db.collection('expenses').orderBy('timestamp', 'desc').onSnapshot(snapshot => {
-                                const allExp = snapshot.docs.map(doc => {
-                                    const data = doc.data();
-                                    let time = data.timestamp?.toDate ? data.timestamp.toDate().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : 'Baru saja';
-                                    return { id: doc.id, ...data, time };
-                                });
-                                this.expensesList = allExp.filter(e => e.shiftName === this.shiftForm.shiftName);
-                            });
+                    // Mengambil SEMUA pengeluaran lintas shift secara real-time
+                    db.collection('expenses').orderBy('timestamp', 'desc').onSnapshot(snapshot => {
+                        this.expensesList = snapshot.docs.map(doc => {
+                            const data = doc.data();
+                            let time = data.timestamp?.toDate ? data.timestamp.toDate().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : 'Baru saja';
+                            return { id: doc.id, ...data, time };
                         });
+                    }, err => { console.warn("Error fetching expenses:", err); });
                 },
                 addToCart(menu) {
                     const existing = this.cart.find(item => item.id === menu.id);
