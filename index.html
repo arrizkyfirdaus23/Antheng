@@ -56,7 +56,7 @@
         .menu-item .m-name { font-weight: 700; color: #1e293b; font-size: 11px; }
         .menu-item .m-price { font-weight: 700; color: #784827; font-size: 11px; margin-top: 6px; }
 
-        .cart-list, .trx-list { max-height: 200px; overflow-y: auto; margin-top: 8px; display: flex; flex-direction: column; gap: 8px; }
+        .cart-list, .trx-list { max-height: 280px; overflow-y: auto; margin-top: 8px; display: flex; flex-direction: column; gap: 8px; }
         .cart-row { display: flex; justify-content: space-between; align-items: center; padding-top: 6px; border-bottom: 1px solid #f1f5f9; padding-bottom: 6px; }
         
         .modal-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 16px; }
@@ -114,7 +114,7 @@
             <!-- Open Shift Section -->
             <div v-else-if="currentUser && !activeShift" class="card" style="margin: auto 0;">
                 <div class="text-center" style="margin-bottom: 20px;">
-                    <div style="font-size: 28px; margin-bottom: 8px;">⏱️️</div>
+                    <div style="font-size: 28px; margin-bottom: 8px;">⏱</div>
                     <h2 style="font-size: 16px; font-weight: 700;">Buka Shift</h2>
                     <p style="font-size: 11px; color: #64748b; margin-top: 4px;">Pilih shift dan atur modal awal kasir</p>
                 </div>
@@ -322,21 +322,31 @@
                     </div>
 
                     <div class="card" style="padding: 12px;">
-                        <h3 style="font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 6px;">Riwayat Transaksi (Semua Shift Terpantau Live)</h3>
+                        <h3 style="font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 6px;">Riwayat Transaksi & Rincian Pesanan (Live)</h3>
                         <div v-if="transactionsList.length === 0" style="text-align: center; color: #94a3b8; font-size: 11px; padding: 20px;">Belum ada transaksi sama sekali.</div>
                         <div v-else class="trx-list">
-                            <div v-for="trx in transactionsList" :key="trx.id" style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid #f1f5f9; padding-bottom: 6px;">
-                                <div>
-                                    <p style="font-weight: 700;">{{ trx.tableOrName }} <span style="font-size: 9px; background: #e2e8f0; padding: 2px 4px; border-radius: 4px;">{{ trx.orderType }}</span></p>
-                                    <p style="font-size: 9px; color: #784827; font-weight: 600; margin-top: 2px;">{{ trx.shiftName }} (PIC: {{ trx.pic }})</p>
-                                    <p style="font-size: 9px; color: #64748b;">Bayar: <strong>{{ trx.paymentMethod }}</strong></p>
-                                </div>
-                                <div style="text-align: right; display: flex; align-items: center; gap: 8px;">
+                            <div v-for="trx in transactionsList" :key="trx.id" style="border: 1px solid #e2e8f0; background: #f8fafc; padding: 10px; border-radius: 10px; margin-bottom: 6px;">
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px dashed #cbd5e1; padding-bottom: 6px; margin-bottom: 6px;">
                                     <div>
-                                        <p style="font-weight: 700; color: #059669;">Rp {{ trx.total.toLocaleString() }}</p>
-                                        <p style="font-size: 9px; color: #94a3b8;">{{ trx.timeStr }}</p>
+                                        <p style="font-weight: 700; font-size: 12px;">{{ trx.tableOrName }} <span style="font-size: 9px; background: #e2e8f0; padding: 2px 4px; border-radius: 4px;">{{ trx.orderType }}</span></p>
+                                        <p style="font-size: 9px; color: #784827; font-weight: 600; margin-top: 2px;">{{ trx.shiftName }} (PIC: {{ trx.pic }})</p>
+                                        <p style="font-size: 9px; color: #64748b;">Bayar via: <strong>{{ trx.paymentMethod }}</strong></p>
                                     </div>
-                                    <button @click="deleteTransaction(trx.id)" style="border: none; background: #fef2f2; padding: 4px 6px; border-radius: 6px; cursor: pointer;">🗑️</button>
+                                    <div style="text-align: right; display: flex; align-items: flex-start; gap: 8px;">
+                                        <div>
+                                            <p style="font-weight: 700; color: #059669; font-size: 12px;">Rp {{ trx.total.toLocaleString() }}</p>
+                                            <p style="font-size: 9px; color: #94a3b8;">{{ trx.timeStr }}</p>
+                                        </div>
+                                        <button @click="deleteTransaction(trx.id)" style="border: none; background: #fef2f2; padding: 4px 6px; border-radius: 6px; cursor: pointer;" title="Hapus Transaksi">🗑️</button>
+                                    </div>
+                                </div>
+                                <!-- Rincian Item yang Dipesan -->
+                                <div style="display: flex; flex-direction: column; gap: 3px;">
+                                    <p style="font-size: 9px; font-weight: 700; color: #475569; margin-bottom: 2px;">Rincian Menu:</p>
+                                    <div v-for="(item, idx) in trx.items" :key="idx" style="display: flex; justify-content: space-between; font-size: 10px; color: #334155;">
+                                        <span>• {{ item.name }} (x{{ item.qty }})</span>
+                                        <span style="font-weight: 600;">Rp {{ (item.price * item.qty).toLocaleString() }}</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -642,7 +652,6 @@
                     }
                 },
                 fetchAllDataLive() {
-                    // Mengambil SEMUA transaksi lintas shift secara real-time
                     db.collection('transactions').orderBy('timestamp', 'desc').onSnapshot(snapshot => {
                         this.transactionsList = snapshot.docs.map(doc => {
                             const data = doc.data();
@@ -651,7 +660,6 @@
                         });
                     }, err => { console.warn("Error fetching transactions:", err); });
 
-                    // Mengambil SEMUA pengeluaran lintas shift secara real-time
                     db.collection('expenses').orderBy('timestamp', 'desc').onSnapshot(snapshot => {
                         this.expensesList = snapshot.docs.map(doc => {
                             const data = doc.data();
